@@ -650,18 +650,20 @@ def main(phone, source):
         
     return phoneJson, jsonList
 
-scraper = PhoneListScraper()
-
-phoneList = scraper.getPhones(datetime.datetime.now().year)
-print(phoneList)
-
-sources = ["Cnet", "TheVerge", "TechRadar"]
-
-dInteract = DatabaseInteract()
-
-for source in sources:
-    for phone in phoneList:
-        phoneObj, reviews = main(phone, source)
-        dInteract.postReviews(reviews)
-        dInteract.postPhoneInfo(phoneObj)
-        
+def __main__(): 
+    scraper = PhoneListScraper()
+    
+    phoneList = scraper.getPhones(datetime.datetime.now().year)
+    print(phoneList)
+    
+    sources = ["Cnet", "TheVerge", "TechRadar"]
+    
+    dInteract = DatabaseInteract()
+    
+    for source in sources:
+        for phone in phoneList:
+            phoneObj, reviews = main(phone, source)
+            dInteract.postReviews(reviews)
+            dInteract.postPhoneInfo(phoneObj)
+            
+__main__()
