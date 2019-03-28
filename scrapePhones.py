@@ -9,6 +9,8 @@ from bs4 import BeautifulSoup
 from requests import get, post, patch
 import html5lib
 import datetime
+import json
+import traceback
 from abc import ABC, abstractmethod
 
 class ReviewSnippet:
@@ -604,9 +606,7 @@ class PhoneScraperFactory:
             raise ValueError("\'" + source + "\' is not a valid source. It may not be implemented.")
         
         
-            
-import json
-import traceback
+
 
 def errorHandling(e):
     print(e.args)
@@ -650,22 +650,18 @@ def main(phone, source):
         
     return phoneJson, jsonList
 
-    
+scraper = PhoneListScraper()
 
-def __main__():
-    
-    scraper = PhoneListScraper()
-    
-    phoneList = scraper.getPhones(datetime.datetime.now().year)
-    print(phoneList)
-    
-    sources = ["Cnet", "TheVerge", "TechRadar"]
-    
-    dInteract = DatabaseInteract()
-    
-    for source in sources:
-        for phone in phoneList:
-            phoneObj, reviews = main(phone, source)
-            dInteract.postReviews(reviews)
-            dInteract.postPhoneInfo(phoneObj)
-            
+phoneList = scraper.getPhones(datetime.datetime.now().year)
+print(phoneList)
+
+sources = ["Cnet", "TheVerge", "TechRadar"]
+
+dInteract = DatabaseInteract()
+
+for source in sources:
+    for phone in phoneList:
+        phoneObj, reviews = main(phone, source)
+        dInteract.postReviews(reviews)
+        dInteract.postPhoneInfo(phoneObj)
+        
