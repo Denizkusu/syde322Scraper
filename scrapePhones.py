@@ -31,10 +31,11 @@ class ReviewSnippet:
         
 class PhoneInfo:
     
-    def __init__(self, phone, price=None, score=None):
+    def __init__(self, phone, price=None, score=None, imageurl=None):
         self.phonename = phone
         self.price = price
         self.score = score
+        self.imageurl = imageurl
         
 class DatabaseInteract:
     
@@ -461,15 +462,28 @@ class CnetScraper(PhoneScraper):
         self.rootSourceUrl = "https://www.cnet.com"
         self.price = None
         self.rating = None
+        self.imageUrl = None
         
     def getPrice(self):
         return self.price
     
+    def setPrice(self, newPrice):
+        self.price = newPrice
+    
     def getRating(self):
         return self.rating
     
+    def setRating(self, newRating):
+        self.rating = newRating
+        
+    def getImageUrl(self):
+        return self.imageUrl
+    
+    def setImageUrl(self, newImageUrl):
+        self.imageUrl = newImageUrl
+    
     def getPhoneInfo(self):
-        return PhoneInfo(self.getPhone(), self.getPrice(), self.getRating())
+        return PhoneInfo(self.getPhone(), self.getPrice(), self.getRating(), self.getImageUrl())
     
     def pageScrape(self, soup):
         
@@ -484,7 +498,7 @@ class CnetScraper(PhoneScraper):
         self.pageScrape(soup)
         self.determinePrice(soup)
         self.determineRating(soup)
-        #self.determineImage(soup)
+        self.determineImage(soup)
         navLinks = self.getAllContent(soup, 'div', {'class':'pageNav'})
         for navLink in navLinks:
             for a in self.getLinks(navLink):
@@ -531,7 +545,7 @@ class CnetScraper(PhoneScraper):
         price = price[:decimalIndex+2]
         
         
-        self.price = float(price)
+        self.setPrice(float(price))
         print("Price is" + price)
         
     def determineRating(self, pageSoup):
@@ -540,12 +554,30 @@ class CnetScraper(PhoneScraper):
         self.rating = rating
         
     def determineImage(self, pageSoup):
+        
+        try:
+            content = self.getContent(pageSoup, 'div', {'class': 'videoStill'})
+        except Exception as e:
+            self.sendWarning(e.args)
+        else:
+             self.setImageUrl((content['style'].split('(')[1].split(')')[0]))
+             return
+         
+        try: 
+            self.getContent(pageSoup, 'div', {'id':'editorReview'})
+        except Exception as e:
+            self.sendWarning(e.args)
+        else:
+            self.setImageUrl(self.getContent(content, 'img')['src'])
+            
+        
+            
          
         #content = self.getContent(pageSoup, 'div', {'id':'editorReview'})
         #content = self.getContent(pageSoup, 'div', {'class':'shortcode'})
-        content = self.getContent(pageSoup, 'div', {'class': 'videoStill'})
+        #content = self.getContent(pageSoup, 'div', {'class': 'videoStill'})
         #print(self.getContent(content, 'img')['src'])
-        print(content['style'].split('(')[1].split(')')[0])
+        #print(content['style'].split('(')[1].split(')')[0])
                 
         
             
@@ -615,7 +647,7 @@ def errorHandling(e):
 def stringErrorHandling(errorString):
     print(errorString)
 
-def main(phone, source):
+def scrapePhone(phone, source):
     try:
         scraper = PhoneScraperFactory().createScraper(source, phone)
     except ValueError as e:
@@ -650,10 +682,16 @@ def main(phone, source):
         
     return phoneJson, jsonList
 
+
+
 def __main__(): 
     scraper = PhoneListScraper()
     
-    phoneList = scraper.getPhones(datetime.datetime.now().year)
+    year = datetime.datetime.now().year
+    year = 2018
+    
+    
+    phoneList = scraper.getPhones(year)
     print(phoneList)
     
     sources = ["Cnet", "TheVerge", "TechRadar"]
@@ -662,8 +700,9 @@ def __main__():
     
     for source in sources:
         for phone in phoneList:
-            phoneObj, reviews = main(phone, source)
-            dInteract.postReviews(reviews)
-            dInteract.postPhoneInfo(phoneObj)
+            phoneObj, reviews = scrapePhone(phone, source)
+            if len(reviews) > 0:
+                dInteract.postReviews(reviews)
+                dInteract.postPhoneInfo(phoneObj)
             
 __main__()
