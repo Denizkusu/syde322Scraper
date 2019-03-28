@@ -688,7 +688,7 @@ def __main__():
     scraper = PhoneListScraper()
     
     year = datetime.datetime.now().year
-    year = 201
+    year = 2018
     
     
     phoneList = scraper.getPhones(year)
