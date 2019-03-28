@@ -242,6 +242,7 @@ class Scraper(ABC):
     def sendWarning(self, message):
         print(message)
         
+    #LEGACY CODE    
     def getImage(self):
         bingSearchUrl = "https://www.bing.com/images/search?q=" + self.getPhone().replace(" ", "+")
         print(bingSearchUrl)
@@ -411,13 +412,17 @@ class TechRadarScraper(PhoneScraper):
     
     def scrape(self, soup):
         self.pageScrape(soup)
-        pageBar = self.getContent(soup, 'div', {'class' : 'swipe-pages-container'})
-        listItems = self.getAllContent(pageBar, 'li') 
-        for item in listItems:
-            for a in self.getLinks(item):
-                innerSoup = self.soupFromUrl(a['href'])
-                self.pageScrape(innerSoup)
-        
+        try:
+            pageBar = self.getContent(soup, 'div', {'class' : 'swipe-pages-container'})
+        except:
+            print("Multiple pages not deteced for Techradar review")
+        else:
+            listItems = self.getAllContent(pageBar, 'li') 
+            for item in listItems:
+                for a in self.getLinks(item):
+                    innerSoup = self.soupFromUrl(a['href'])
+                    self.pageScrape(innerSoup)
+            
 
         
     def pageScrape(self, soup):
@@ -639,56 +644,102 @@ class PhoneScraperFactory:
         
         
 
-
-def errorHandling(e):
-    print(e.args)
-    print(traceback.format_exc())
-
-def stringErrorHandling(errorString):
-    print(errorString)
-
-def scrapePhone(phone, source):
-    try:
-        scraper = PhoneScraperFactory().createScraper(source, phone)
-    except ValueError as e:
-        errorHandling(e)
-        return []
+class MultiScraper():
     
-    
-    try:
-        reviewSoup = scraper.getReview()
-        scraper.scrape(reviewSoup)
-    except Exception as e:
-        errorHandling(e)
-        return None, []
-    
-    
-    jsonList = []
-    
-    
-    if len(scraper.reviews) < 1:
-        stringErrorHandling("no reviews found")
-        return None, []
-    else:
-        for review in scraper.reviews:
-            #review.printReview()
-            jsonList.append(review.__dict__)
-            
-    phone = scraper.getPhoneInfo()    
-    phoneJson = None
-    
-    if phone is not None:
-        phoneJson = phone.__dict__
+    def __init__(self):
+        self.successfulScrapes = []
+        self.missingReviews = []
+        self.faultyScrapes = []
+        self.totalReviews = 0
         
-    return phoneJson, jsonList
+    def getSuccessfulScrapes(self):
+        return self.successfulScrapes
+    
+    def getMissingReviews(self):
+        return self.missingReviews
+    
+    def getFaultyScrapes(self):
+        return self.faultyScrapes
+    
+    def addSuccessfulScrape(self, phoneSource):
+        self.successfulScrapes.append(phoneSource)
+    
+    def addMissingReview(self, phoneSource):
+        self.missingReviews.append(phoneSource)
+        
+    def addFaultyScrape(self, phoneSource):
+        self.faultyScrapes.append(phoneSource)
+        
+    def addReview(self):
+        self.totalReviews +=1
+        
+    def getTotalReviews(self):
+        return self.totalReviews
+        
 
+    def errorHandling(self, e):
+        print(e.args)
+        print(traceback.format_exc())
+    
+    def stringErrorHandling(self, errorString):
+        print(errorString)
+    
+    def scrapePhone(self, phone, source):
+        self.addReview()
+        
+        try:
+            scraper = PhoneScraperFactory().createScraper(source, phone)
+        except ValueError as e:
+            self.errorHandling(e)
+            return []
+        
+        
+        try:
+            reviewSoup = scraper.getReview()
+        except Exception as e:
+            self.addMissingReview(phone + " " + source)
+            self.errorHandling(e)
+            return None, []
+        
+        try:
+            scraper.scrape(reviewSoup)
+        except Exception as e:
+            self.addFaultyScrape(phone + " " + source)
+            self.errorHandling(e)
+            return None, []
+        
+        
+        jsonList = []
+        
+        
+        if len(scraper.reviews) < 1:
+            self.stringErrorHandling("no reviews found")
+            self.addMissingReview(phone + " " + source)
+            return None, []
+        else:
+            for review in scraper.reviews:
+                #review.printReview()
+                jsonList.append(review.__dict__)
+        
+        self.addSuccessfulScrape(phone + " " + source)
+
+        
+        phone = scraper.getPhoneInfo()    
+        phoneJson = None
+        
+        if phone is not None:
+            phoneJson = phone.__dict__
+        
+                
+        return phoneJson, jsonList
+    
 
 
 def __main__(): 
     scraper = PhoneListScraper()
     
     year = datetime.datetime.now().year
-    year = 2018
+    #year = 2018
     
     
     phoneList = scraper.getPhones(year)
@@ -697,12 +748,25 @@ def __main__():
     sources = ["Cnet", "TheVerge", "TechRadar"]
     
     dInteract = DatabaseInteract()
+    multiScraper = MultiScraper()
     
     for source in sources:
         for phone in phoneList:
-            phoneObj, reviews = scrapePhone(phone, source)
+            phoneObj, reviews = multiScraper.scrapePhone(phone, source)
             if len(reviews) > 0:
                 dInteract.postReviews(reviews)
                 dInteract.postPhoneInfo(phoneObj)
+                
+    print("Completed scrape.")
+    print(str(len(multiScraper.getSuccessfulScrapes())) + " successful out of " + str(multiScraper.getTotalReviews()))
+    print("Missing reviews: " + str(len(multiScraper.getMissingReviews())))
+    print("Failed Scrapes: " + str(len(multiScraper.getFaultyScrapes())))
+    print("--------------------------------------------")
+    print("Sucessful: ")
+    print(multiScraper.getSuccessfulScrapes())
+    print("Missing: ")
+    print(multiScraper.getMissingReviews())
+    print("Failed Scrapes: ")
+    print(multiScraper.getFaultyScrapes())
             
 __main__()
