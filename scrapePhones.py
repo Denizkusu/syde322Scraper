@@ -564,7 +564,7 @@ class CnetScraper(PhoneScraper):
              return
          
         try: 
-            self.getContent(pageSoup, 'div', {'id':'editorReview'})
+            content = self.getContent(pageSoup, 'div', {'id':'editorReview'})
         except Exception as e:
             self.sendWarning(e.args)
         else:
@@ -688,7 +688,7 @@ def __main__():
     scraper = PhoneListScraper()
     
     year = datetime.datetime.now().year
-    year = 2018
+    year = 201
     
     
     phoneList = scraper.getPhones(year)
